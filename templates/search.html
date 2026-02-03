@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Student</title>
+    <!-- SAME CSS AS INDEX -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<style>
+.container{
+display:'flex'
+justify-content:'center'
+</style>
+
+<body>
+
+<div class="container">
+
+    <h2>Student Management System</h2>
+    <h3>Search Student</h3>
+
+    <!-- SEARCH FORM -->
+    <form method="POST">
+        <label>Search by Name:</label><br>
+        <input type="text" name="keyword" placeholder="Enter student name" required>
+        <br><br>
+        <button type="submit">Search</button>
+    </form>
+
+    <br>
+
+    {% if students %}
+    <table border="1" cellpadding="10">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Marks</th>
+            <th>Action</th>
+        </tr>
+
+        {% for s in students %}
+        <tr>
+            <td>{{ s.id }}</td>
+            <td>{{ s.name }}</td>
+            <td>{{ s.marks }}</td>
+            <td>
+                <a href="/edit/{{ s.id }}">Edit</a> |
+                <a href="/delete/{{ s.id }}"
+                   onclick="return confirm('Are you sure?')">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        {% if searched %}
+            <p>No student found ❌</p>
+        {% endif %}
+    {% endif %}
+
+    <br>
+    <a href="/">← Back to Home</a>
+
+</div>
+
+</body>
+</html>

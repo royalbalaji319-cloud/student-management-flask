@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<!-- Navbar -->
+<div class="navbar">
+  <div class="nav-left">
+    Student Management System
+  </div>
+  <div class="nav-right">
+<a href="/logout">
+    <button style="background:red;color:white;">Logout</button>
+</a>  </div>
+</div>
+
+
+<div class="container">
+
+<h2>Student Management System</h2>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div id="flash-message" class="flash {{ category }}">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endwith %}
+
+<!-- Add Student Form -->
+<form method="POST" action="/dashboard">
+    <label>Name:</label><br>
+    <input type="text" name="name" required><br><br>
+
+    <label>Marks:</label><br>
+    <input type="number" name="marks" required><br><br>
+
+    <button type="submit">Add Student</button>
+</form>
+
+<hr>
+
+<!-- Search -->
+<h3>Search Student</h3>
+<form method="POST" action="/search">
+    <input type="text" name="keyword" placeholder="Enter name" required>
+    <button type="submit">Search</button>
+</form>
+
+<hr>
+
+<!-- Student Table -->
+<table border="1" width="100%">
+<tr>
+    <th>ID</th>
+    <th>Name</th>
+    <th>Marks</th>
+    <th>Action</th>
+</tr>
+
+{% for s in students %}
+<tr>
+    <td>{{ loop.index }}</td>
+    <td>{{ s.name }}</td>
+    <td>{{ s.marks }}</td>
+    <td>
+        <a href="/edit/{{ s.id }}">Edit</a> |
+        <a href="/delete/{{ s.id }}" onclick="return confirm('Delete student?')">Delete</a>
+    </td>
+</tr>
+{% endfor %}
+</table>
+
+<br>
+<a href="/download"><button>⬇ Download Student List</button></a>
+
+<br><br>
+<a href="/logout">Logout</a>
+
+</div>
+
+<!-- ✅ AUTO HIDE FLASH (2 seconds) -->
+<script>
+setTimeout(function () {
+    let flash = document.getElementById("flash-message");
+    if (flash) {
+        flash.style.display = "none";
+    }
+}, 2000);
+</script>
+
+</body>
+</html>
