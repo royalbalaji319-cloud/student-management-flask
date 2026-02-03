@@ -1,39 +1,41 @@
 from flask import Flask, render_template, request, redirect, send_file, flash, session
 import sqlite3
-from flask import flash   # top lo import undali
-
 import csv
+import os
 from werkzeug.security import generate_password_hash, check_password_hash
 
-import sqlite3
-
-con = sqlite3.connect("students.db", check_same_thread=False)
-con.row_factory = sqlite3.Row   # ⭐ IMPORTANT
-
-cur = con.cursor()
-
-
+# ---------------- APP CONFIG ----------------
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-
+# ---------------- DB PATH (IMPORTANT FOR RENDER) ----------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "students.db")
 
 # ---------------- DB CONNECTION ----------------
 def get_db_connection():
-    conn = sqlite3.connect("students.db")
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
-
 # ---------------- INIT DATABASE ----------------
 def init_db():
-    conn = sqlite3.connect("students.db")
+    conn = get_db_connection()
     cur = conn.cursor()
+
+    # users table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    """)
 
     # students table
     cur.execute("""
         CREATE TABLE IF NOT EXISTS students (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             marks INTEGER NOT NULL
         )
@@ -42,33 +44,25 @@ def init_db():
     conn.commit()
     conn.close()
 
-
-# ---------------- DEFAULT ROUTE ----------------
+# ---------------- HOME ----------------
 @app.route("/")
 def home():
-    # 👉 First page = Register
     if "user" in session:
         return redirect("/dashboard")
     return redirect("/register")
 
-
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    if "user" in session:
-        return redirect("/dashboard")
-
     if request.method == "POST":
         username = request.form["username"]
-        password = request.form["password"]
-
-        hashed_password = generate_password_hash(password)
+        password = generate_password_hash(request.form["password"])
 
         conn = get_db_connection()
         try:
             conn.execute(
                 "INSERT INTO users (username, password) VALUES (?, ?)",
-                (username, hashed_password)
+                (username, password)
             )
             conn.commit()
             flash("Registration Successful! Please Login.", "success")
@@ -80,13 +74,9 @@ def register():
 
     return render_template("register.html")
 
-
 # ---------------- LOGIN ----------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if "user" in session:
-        return redirect("/dashboard")
-
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
@@ -107,7 +97,6 @@ def login():
 
     return render_template("login.html")
 
-
 # ---------------- LOGOUT ----------------
 @app.route("/logout")
 def logout():
@@ -115,28 +104,29 @@ def logout():
     flash("Logged out successfully!", "success")
     return redirect("/login")
 
-
 # ---------------- DASHBOARD ----------------
-@app.route('/dashboard', methods=['GET', 'POST'])
+@app.route("/dashboard", methods=["GET", "POST"])
 def dashboard():
-    if request.method == 'POST':
-        name = request.form['name']
-        marks = request.form['marks']
+    if "user" not in session:
+        return redirect("/login")
 
-        cur.execute(
+    conn = get_db_connection()
+
+    if request.method == "POST":
+        name = request.form["name"]
+        marks = request.form["marks"]
+
+        conn.execute(
             "INSERT INTO students (name, marks) VALUES (?, ?)",
             (name, marks)
         )
-        con.commit()
+        conn.commit()
+        flash("Student Added Successfully!", "success")
 
-        flash("Student Added Successfully!", "success")   # ✅ IKKADA
-
-    cur.execute("SELECT * FROM students")
-    students = cur.fetchall()
+    students = conn.execute("SELECT * FROM students").fetchall()
+    conn.close()
 
     return render_template("dashboard.html", students=students)
-
-
 
 # ---------------- DELETE ----------------
 @app.route("/delete/<int:id>")
@@ -151,7 +141,6 @@ def delete(id):
 
     flash("Student Deleted Successfully!", "danger")
     return redirect("/dashboard")
-
 
 # ---------------- EDIT ----------------
 @app.route("/edit/<int:id>", methods=["GET", "POST"])
@@ -176,10 +165,9 @@ def edit(id):
         "SELECT * FROM students WHERE id = ?",
         (id,)
     ).fetchone()
-
     conn.close()
-    return render_template("edit.html", student=student)
 
+    return render_template("edit.html", student=student)
 
 # ---------------- SEARCH ----------------
 @app.route("/search", methods=["POST"])
@@ -188,6 +176,7 @@ def search():
         return redirect("/login")
 
     keyword = request.form["keyword"]
+
     conn = get_db_connection()
     students = conn.execute(
         "SELECT * FROM students WHERE name LIKE ?",
@@ -196,7 +185,6 @@ def search():
     conn.close()
 
     return render_template("search.html", students=students, searched=True)
-
 
 # ---------------- DOWNLOAD CSV ----------------
 @app.route("/download")
@@ -208,16 +196,17 @@ def download():
     data = conn.execute("SELECT * FROM students").fetchall()
     conn.close()
 
-    with open("students.csv", "w", newline="") as f:
+    csv_path = os.path.join(BASE_DIR, "students.csv")
+
+    with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["ID", "Name", "Marks"])
         for row in data:
             writer.writerow([row["id"], row["name"], row["marks"]])
 
-    return send_file("students.csv", as_attachment=True)
+    return send_file(csv_path, as_attachment=True)
 
-
-# ---------------- RUN APP ----------------
+# ---------------- RUN ----------------
 if __name__ == "__main__":
-    init_db()          # 🔥 auto create tables
-    app.run(debug=True)
+    init_db()
+    app.run(host="0.0.0.0", port=10000)
