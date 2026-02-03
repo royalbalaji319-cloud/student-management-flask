@@ -6,17 +6,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 # ---------------- APP CONFIG ----------------
 app = Flask(__name__)
-app.secret_key = "secret123"
+app.secret_key = os.environ.get("SECRET_KEY", "dev_secret")
 
-# ---------------- DB PATH (IMPORTANT FOR RENDER) ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "students.db")
 
+
 # ---------------- DB CONNECTION ----------------
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 # ---------------- INIT DATABASE ----------------
 def init_db():
@@ -44,25 +45,36 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ---------------- HOME ----------------
+
+# Run DB init ON APP START (important for Render)
+init_db()
+
+
+# ---------------- DEFAULT ROUTE ----------------
 @app.route("/")
 def home():
     if "user" in session:
         return redirect("/dashboard")
     return redirect("/register")
 
+
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if "user" in session:
+        return redirect("/dashboard")
+
     if request.method == "POST":
         username = request.form["username"]
-        password = generate_password_hash(request.form["password"])
+        password = request.form["password"]
+
+        hashed_password = generate_password_hash(password)
 
         conn = get_db_connection()
         try:
             conn.execute(
                 "INSERT INTO users (username, password) VALUES (?, ?)",
-                (username, password)
+                (username, hashed_password)
             )
             conn.commit()
             flash("Registration Successful! Please Login.", "success")
@@ -74,9 +86,13 @@ def register():
 
     return render_template("register.html")
 
+
 # ---------------- LOGIN ----------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if "user" in session:
+        return redirect("/dashboard")
+
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
@@ -97,12 +113,14 @@ def login():
 
     return render_template("login.html")
 
+
 # ---------------- LOGOUT ----------------
 @app.route("/logout")
 def logout():
     session.clear()
     flash("Logged out successfully!", "success")
     return redirect("/login")
+
 
 # ---------------- DASHBOARD ----------------
 @app.route("/dashboard", methods=["GET", "POST"])
@@ -128,6 +146,7 @@ def dashboard():
 
     return render_template("dashboard.html", students=students)
 
+
 # ---------------- DELETE ----------------
 @app.route("/delete/<int:id>")
 def delete(id):
@@ -141,6 +160,7 @@ def delete(id):
 
     flash("Student Deleted Successfully!", "danger")
     return redirect("/dashboard")
+
 
 # ---------------- EDIT ----------------
 @app.route("/edit/<int:id>", methods=["GET", "POST"])
@@ -165,9 +185,10 @@ def edit(id):
         "SELECT * FROM students WHERE id = ?",
         (id,)
     ).fetchone()
-    conn.close()
 
+    conn.close()
     return render_template("edit.html", student=student)
+
 
 # ---------------- SEARCH ----------------
 @app.route("/search", methods=["POST"])
@@ -185,6 +206,7 @@ def search():
     conn.close()
 
     return render_template("search.html", students=students, searched=True)
+
 
 # ---------------- DOWNLOAD CSV ----------------
 @app.route("/download")
@@ -205,8 +227,3 @@ def download():
             writer.writerow([row["id"], row["name"], row["marks"]])
 
     return send_file(csv_path, as_attachment=True)
-
-# ---------------- RUN ----------------
-if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=10000)
