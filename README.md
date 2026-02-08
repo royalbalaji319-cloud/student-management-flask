@@ -71,4 +71,4 @@ Open browser and visit
 👤 Author
 
 ## Balaji Akula ##
-Python & Flask Developer
+Python Fullstack & Flask Developer
