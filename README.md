@@ -35,7 +35,8 @@ Visual Studio Code
 
 # Preview
 
-Screenshots or live demo link can be added here
+![Uploading image.png…]()
+
 
 Live Demo: https://student-management-flask-x15g.onrender.com
 GitHub Repo: https://github.com/royalbalaji319-cloud/student-management-flask.
